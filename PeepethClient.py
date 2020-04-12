@@ -2,6 +2,7 @@ from web3 import Web3
 import json
 import requests
 import pandas as pd 
+from functools import reduce
 
 class PeepethClient:
     def __init__(self, 
@@ -25,31 +26,45 @@ class PeepethClient:
             data = self.get_input_data_from_transaction(tx)
             function, data = self.decode_function_input(data)
             if function == "saveBatch":
-                print("WOAH")
-                print(data.keys())
+#                print("WOAH")
+#                print(data.keys())
                 continue
             data_to_parse = self.get_data_from_ipfs(data['_ipfsHash'])
-            res.append(data_to_parse)
+            end_res = self.parse_signed_actions(data_to_parse['signedActions'])
+            res.append(end_res)
+                            
        # print(res)
-        return res
+        return reduce(lambda x, y: x + y, res)
 
             
             ##self.dfs(events)
     def decode_function_input(self, data):
         return self.peep_contract.decode_function_input(data)
     
-    @staticmethod
-    def parsed_signed_actions(ipfs_data):
-        new_res = []
-        for item in ipfs_data['signedActions']:
-            for action, dta in item.items():
-                if 'ipfs' not in dta:
-                    continue
-                new = dta
-                new['type'] = action
-                new_res.append(new)
-        return new_res
+    def parse_signed_actions(self, signed_actions):
+        """recursively parses the signed actions
+           
+           dfs i think? lmao
         
+           need to refactor this"""
+        
+        if signed_actions == []:
+            return [] 
+        
+        if type(signed_actions) == dict:
+            if "signedActions" in signed_actions:
+                return self.parse_signed_actions(signed_actions['signedActions'])
+            else:
+                return [signed_actions]
+        
+        action, data = list(signed_actions[0].items())[0]
+        if "ipfs" in data:
+            new_url = self.get_data_from_ipfs(data['ipfs'])
+            return self.parse_signed_actions(new_url) \
+                   + self.parse_signed_actions(signed_actions[1:])
+        else:
+            return [data] + self.parse_signed_actions(signed_actions[1:])
+         
     @staticmethod    
     def load_json(path):
         with open(path, "r") as r:
@@ -68,6 +83,7 @@ class PeepethClient:
         return self.w3.eth.getTransaction(tx['transactionHash'])['input']
     
     def get_historical_events(self):
+        """gonna remove this hardcoding after i get it """
         latest_block_number = self.w3.eth.getBlock("latest")["number"]
         return self.peep_contract.events \
                                  .PeepethEvent() \
