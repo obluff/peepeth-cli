@@ -1,6 +1,5 @@
 ## CLI for Peepeth 
-
-- doing this to get familliar with parsing data from eth mainnet/ipfs 
+- Doing this to get familliar with parsing data from eth mainnet/ipfs and create a simple recommendation system
 
 ### Milestones
 - Functional read only client
